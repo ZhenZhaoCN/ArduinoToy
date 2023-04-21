@@ -6,7 +6,8 @@
 /*WIFI名，WIFI密码，web service地址 */
 const char* ssid = "95HAO@unifi";
 const char* password = "9876543210";
-const char* serverName = "http://api.openweathermap.org/data/2.5/weather?q=kuala%20lumpur&appid=efc8bd20667f1133caf793d4469664f2&units=metric";
+const char* weatherService = "http://api.openweathermap.org/data/2.5/weather?q=kuala%20lumpur&appid=efc8bd20667f1133caf793d4469664f2&units=metric";
+const char* currencyService = "http://web.juhe.cn/finance/exchange/rmbquot?type=&bank=&key=4f10dcfc7f352977e9c01abcbf15d29d";
 
 WiFiServer espServer(80); /* WiFiServer的实例，端口号80, 80是HTTP Web Server默认端口号*/
 String responseOfTheRequest;/* 存放response的临时变量*/
@@ -80,20 +81,29 @@ void loop()
               }
         */
 
-        responseOfTheRequest = httpGETRequest(serverName);
+        responseOfTheRequest = httpGETRequest(weatherService);
         Serial.println(responseOfTheRequest);
-        JSONVar myObject = JSON.parse(responseOfTheRequest);
+        JSONVar weatherData = JSON.parse(responseOfTheRequest);
         // JSON.typeof(jsonVar) can be used to get the type of the var
-        if (JSON.typeof(myObject) == "undefined") {
+        if (JSON.typeof(weatherData) == "undefined") {
           Serial.println("Parsing input failed!");
           return;
         }
+        responseOfTheRequest = httpGETRequest(currencyService);
+        Serial.println(responseOfTheRequest);
+        JSONVar currencyData = JSON.parse(responseOfTheRequest);
+        // JSON.typeof(jsonVar) can be used to get the type of the var
+        if (JSON.typeof(currencyData) == "undefined") {
+          Serial.println("Parsing input failed!");
+          return;
+        }
+        Serial.println(currencyData[String("result")][0][String("data13")][String("bankConversionPri")]);
         /* DEBUGresponse的data使用
-          //  myObject.keys() can be used to get an array of all the keys in the object
-          //  JSONVar keys = myObject.keys();
+          //  weatherData.keys() can be used to get an array of all the keys in the object
+          //  JSONVar keys = weatherData.keys();
           //  Serial.println(keys);
           //  for (int i = 0; i < keys.length(); i++) {
-          //    JSONVar value = myObject[keys[i]];
+          //    JSONVar value = weatherData[keys[i]];
           //    Serial.print(keys[i]);
           //    Serial.print(" = ");
           //    Serial.println(value);
@@ -126,32 +136,35 @@ void loop()
         client.println("<body>");
         client.println("<h2>当前天气</h2>");
         client.println("<p>今日温度");
-        client.print(myObject[String("main")][String("temp_min")]);
+        client.print(weatherData[String("main")][String("temp_min")]);
         client.print(" - ");
-        client.print(myObject[String("main")][String("temp_max")]);
+        client.print(weatherData[String("main")][String("temp_max")]);
         client.println("&#8451;</p>");
         client.println("<p>平均气温");
-        client.println(myObject[String("main")][String("temp")]);
+        client.println(weatherData[String("main")][String("temp")]);
         client.println("&#8451;</p>");
         client.println("<p>湿度");
-        client.println(myObject[String("main")][String("humidity")]);
+        client.println(weatherData[String("main")][String("humidity")]);
         client.println("&#37;</p>");
         client.println("<p>气压");
-        client.println(myObject[String("main")][String("pressure")]);
+        client.println(weatherData[String("main")][String("pressure")]);
         client.println("Pa</p>");
         client.println("<p>风速");
-        client.println(myObject[String("wind")][String("speed")]);
+        client.println(weatherData[String("wind")][String("speed")]);
         client.println("</p>");
+        client.println("<hr/>");
+        
         /* The main body of the Web Page */
-
+        client.println("<p>马币汇率");
+        client.println(currencyData[String("result")][0][String("data13")][String("bankConversionPri")]);
+        client.println("</p>");
         client.println("</body>");
         client.println("</html>");
         client.print("\n");
         break;
       } else
       {
-        Serial.println("No Client.");
-        delay(1000);
+        espServer.begin(); /* Start the HTTP web Server */
         return;
       }
     }
